@@ -1,0 +1,594 @@
+--!native
+--!optimize 2
+
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TextChatService = game:GetService("TextChatService")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local TweenService = game:GetService("TweenService")
+
+local localPlayer = Players.LocalPlayer
+local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+local rootPart = character:FindFirstChild("HumanoidRootPart")
+local RBXGeneral = TextChatService.TextChannels.RBXGeneral
+
+-- Load WindUI
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+-- Load ESPLibrary
+local ESPLibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/mstudio45/MS-ESP/refs/heads/main/source.lua"))()
+
+-- Entity Table
+local EntityTable = {
+    Names = {"BackdoorRush", "BackdoorLookman", "RushMoving", "AmbushMoving", "Eyes", "JeffTheKiller", "A60", "A120"},
+    SideNames = {"FigureRig", "GiggleCeiling", "GrumbleRig", "Snare"},
+    ShortNames = {
+        ["BackdoorRush"] = "Blitz",
+        ["JeffTheKiller"] = "Jeff The Killer"
+    },
+    NotifyMessage = {
+        ["GloombatSwarm"] = "Gloombats in next room!"
+    },
+    NotifyReason = {
+        ["A60"] = {Image = "12350986086"},
+        ["A120"] = {Image = "12351008553"},
+        ["BackdoorRush"] = {Image = "11102256553"},
+        ["RushMoving"] = {Image = "11102256553"},
+        ["AmbushMoving"] = {Image = "10938726652"},
+        ["Eyes"] = {Image = "10865377903", Spawned = true},
+        ["BackdoorLookman"] = {Image = "16764872677", Spawned = true},
+        ["JeffTheKiller"] = {Image = "98993343", Spawned = true},
+        ["GloombatSwarm"] = {Image = "79221203116470", Spawned = true},
+        ["HaltRoom"] = {Image = "11331795398", Spawned = true}
+    },
+    AutoWardrobe = {
+        Entities = {"RushMoving", "AmbushMoving", "BackdoorRush", "A60", "A120"},
+        Distance = {
+            ["RushMoving"] = {Distance = 100, Loader = 175},
+            ["BackdoorRush"] = {Distance = 100, Loader = 175},
+            ["AmbushMoving"] = {Distance = 155, Loader = 200},
+            ["A60"] = {Distance = 200, Loader = 200},
+            ["A120"] = {Distance = 200, Loader = 200}
+        }
+    },
+    InfCrucifixVelocity = {
+        ["RushMoving"] = {threshold = 52, minDistance = 55},
+        ["RushNew"] = {threshold = 52, minDistance = 55},
+        ["AmbushMoving"] = {threshold = 70, minDistance = 80}
+    }
+}
+
+local HidingPlaceName = {
+    ["Hotel"] = "Closet",
+    ["Backdoor"] = "Closet",
+    ["Fools"] = "Closet",
+    ["Retro"] = "Closet",
+    ["Rooms"] = "Locker",
+    ["Mines"] = "Locker"
+}
+
+-- WindUI Window
+local Window = WindUI:CreateWindow({
+    Title = "Script - Doors",
+    Icon = "door-open",
+    Author = "by noguchi hyuga",
+    Folder = "hihi",
+    Size = UDim2.fromOffset(580, 460),
+    Transparent = true,
+    Theme = "Dark",
+    SideBarWidth = 200,
+    BackgroundImageTransparency = 0.42,
+    HideSearchBar = true,
+    ScrollBarEnabled = false,
+})
+
+local Tab = Window:Tab({ Title = "Main" })
+
+-- Hàm alert
+function alert(title, desc)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = title,
+        Text = desc
+    })
+end
+
+-- Hàm khoảng cách
+local function DistanceFromCharacter(position)
+    if not position then return 9e9 end
+    if typeof(position) == "Instance" then position = position:GetPivot().Position end
+    if rootPart then return math.floor((rootPart.Position - position).Magnitude) end
+    return 9e9
+end
+
+-- Hàm ESP
+function ESP(args)
+    if not args.Object then return warn("ESP Object is nil") end
+    local distance = DistanceFromCharacter(args.Object)
+    local ESPInstance = ESPLibrary.ESP.Highlight({
+        Name = string.format("%s\n[%d]", args.Text or "No Text", distance),
+        Model = args.Object,
+        FillColor = args.Color or Color3.new(),
+        OutlineColor = args.Color or Color3.new(),
+        TextColor = args.Color or Color3.new(),
+        TextSize = 16,
+        FillTransparency = 0.5,
+        OutlineTransparency = 0,
+        Tracer = { Enabled = getgenv().espTracer, Color = args.Color or Color3.new() },
+        Rainbow = getgenv().espRainbow
+    })
+    table.insert(getgenv().ESPTable[args.Type], ESPInstance)
+    return ESPInstance
+end
+
+-- Khởi tạo ESPTable
+getgenv().ESPTable = {
+    Door = {},
+    Entity = {},
+    SideEntity = {},
+    Item = {},
+    Chest = {},
+    HidingSpot = {},
+    Gold = {},
+    Guiding = {}
+}
+
+-- Toggle Remove Screech Damage
+Tab:Toggle({
+    Title = "Remove Screech Damage",
+    Default = false,
+    Callback = function(v)
+        getgenv().rsd = v
+    end
+})
+
+-- Toggle Anti A90
+Tab:Toggle({
+    Title = "Anti A90",
+    Default = false,
+    Callback = function(v)
+        getgenv().antiA90 = v
+    end
+})
+
+-- Toggle Auto Wardrobe
+Tab:Toggle({
+    Title = "Auto Wardrobe",
+    Default = false,
+    Callback = function(v)
+        getgenv().autoWardrobe = v
+    end
+})
+
+-- Toggle Infinite Crucifix
+Tab:Toggle({
+    Title = "Infinite Crucifix",
+    Default = false,
+    Callback = function(v)
+        getgenv().infCrucifix = v
+    end
+})
+
+-- Toggle Anti Lag
+Tab:Toggle({
+    Title = "Anti Lag",
+    Default = false,
+    Callback = function(v)
+        getgenv().antiLag = v
+        if v then
+            for _, v in pairs(Workspace.CurrentRooms:GetDescendants()) do
+                if v:IsA("Decal") and v.Name ~= "Normal" then
+                    v.Transparency = 1
+                end
+            end
+        else
+            for _, v in pairs(Workspace.CurrentRooms:GetDescendants()) do
+                if v:IsA("Decal") and v.Name ~= "Normal" then
+                    v.Transparency = 0
+                end
+            end
+        end
+    end
+})
+
+-- Toggle No Cutscenes
+Tab:Toggle({
+    Title = "No Cutscenes",
+    Default = false,
+    Callback = function(v)
+        getgenv().noCutscenes = v
+    end
+})
+
+-- Toggle Translucent Hiding Spot
+Tab:Toggle({
+    Title = "Translucent Hiding Spot",
+    Default = false,
+    Callback = function(v)
+        getgenv().transHiding = v
+        if v then
+            for _, spot in pairs(Workspace.CurrentRooms:GetDescendants()) do
+                if spot:IsA("BasePart") and (spot.Parent:GetAttribute("LoadModule") == "Wardrobe" or spot.Parent:GetAttribute("LoadModule") == "Bed" or spot.Parent.Name == "Rooms_Locker") then
+                    spot.Transparency = 0.7
+                end
+            end
+        else
+            for _, spot in pairs(Workspace.CurrentRooms:GetDescendants()) do
+                if spot:IsA("BasePart") and (spot.Parent:GetAttribute("LoadModule") == "Wardrobe" or spot.Parent:GetAttribute("LoadModule") == "Bed" or spot.Parent.Name == "Rooms_Locker") then
+                    spot.Transparency = 0
+                end
+            end
+        end
+    end
+})
+
+-- Toggle Full Bright
+Tab:Toggle({
+    Title = "Full Bright",
+    Default = false,
+    Callback = function(v)
+        getgenv().fb = v
+        Lighting.Ambient = v and Color3.new(1, 1, 1) or Color3.new(0, 0, 0)
+        Lighting.Brightness = v and 1 or Lighting:GetAttribute("Brightness") or 1
+    end
+})
+
+-- Toggle Notify Entity
+Tab:Toggle({
+    Title = "Notify Entity",
+    Default = false,
+    Callback = function(v)
+        getgenv().ne = v
+    end
+})
+
+-- Toggle ESP Items
+Tab:Toggle({
+    Title = "Esp Items",
+    Default = false,
+    Callback = function(v)
+        getgenv().espi = v
+        if v then
+            for _, item in pairs(Workspace.Drops:GetChildren()) do
+                if item:IsA("Model") and (item:GetAttribute("Pickup") or item:GetAttribute("PropType")) then
+                    ESP({
+                        Type = "Item",
+                        Object = item,
+                        Text = item.Name,
+                        Color = Color3.new(1, 1, 0) -- Vàng
+                    })
+                end
+            end
+        else
+            for _, esp in pairs(getgenv().ESPTable.Item) do
+                esp.Destroy()
+            end
+        end
+    end
+})
+
+-- Toggle ESP Key/Lever
+Tab:Toggle({
+    Title = "Esp Key, Lever",
+    Default = false,
+    Callback = function(v)
+        getgenv().espk = v
+        if v then
+            for _, item in pairs(game.CollectionService:GetTagged("RevealedByGuidance")) do
+                ESP({
+                    Type = "Item",
+                    Object = item,
+                    Text = item.Name,
+                    Color = Color3.new(1, 1, 0) -- Vàng
+                })
+            end
+        else
+            for _, esp in pairs(getgenv().ESPTable.Item) do
+                esp.Destroy()
+            end
+        end
+    end
+})
+
+-- Toggle ESP Door
+Tab:Toggle({
+    Title = "Esp Door",
+    Default = false,
+    Callback = function(v)
+        getgenv().espdr = v
+        if v then
+            local currentRoom = Workspace.CurrentRooms:FindFirstChild(tostring(localPlayer:GetAttribute("CurrentRoom")))
+            if currentRoom and currentRoom:FindFirstChild("Door") then
+                ESP({
+                    Type = "Door",
+                    Object = currentRoom.Door.Door,
+                    Text = "Door " .. tostring(localPlayer:GetAttribute("CurrentRoom") + 1),
+                    Color = Color3.new(0, 0, 1) -- Xanh dương
+                })
+            end
+        else
+            for _, esp in pairs(getgenv().ESPTable.Door) do
+                esp.Destroy()
+            end
+        end
+    end
+})
+
+-- Toggle ESP Chest
+Tab:Toggle({
+    Title = "Esp Chest",
+    Default = false,
+    Callback = function(v)
+        getgenv().espc = v
+        if v then
+            for _, chest in pairs(Workspace.CurrentRooms:GetDescendants()) do
+                if chest:GetAttribute("Storage") == "ChestBox" or chest.Name == "Toolshed_Small" then
+                    ESP({
+                        Type = "Chest",
+                        Object = chest,
+                        Text = chest.Name:gsub("Box", ""):gsub("_Vine", ""):gsub("_Small", "") .. (chest:GetAttribute("Locked") and " [Locked]" or ""),
+                        Color = Color3.new(1, 1, 0) -- Vàng
+                    })
+                end
+            end
+        else
+            for _, esp in pairs(getgenv().ESPTable.Chest) do
+                esp.Destroy()
+            end
+        end
+    end
+})
+
+-- Toggle ESP HidingSpot
+Tab:Toggle({
+    Title = "Esp Hiding Spot",
+    Default = false,
+    Callback = function(v)
+        getgenv().esphs = v
+        if v then
+            for _, spot in pairs(Workspace.CurrentRooms:GetDescendants()) do
+                if spot:GetAttribute("LoadModule") == "Wardrobe" or spot:GetAttribute("LoadModule") == "Bed" or spot.Name == "Rooms_Locker" or spot.Name == "RetroWardrobe" then
+                    ESP({
+                        Type = "HidingSpot",
+                        Object = spot,
+                        Text = spot:GetAttribute("LoadModule") == "Bed" and "Bed" or HidingPlaceName[game:GetService("ReplicatedStorage").GameData.Floor.Value],
+                        Color = Color3.new(0, 1, 0) -- Xanh lá
+                    })
+                end
+            end
+        else
+            for _, esp in pairs(getgenv().ESPTable.HidingSpot) do
+                esp.Destroy()
+            end
+        end
+    end
+})
+
+-- Toggle ESP Gold
+Tab:Toggle({
+    Title = "Esp Gold",
+    Default = false,
+    Callback = function(v)
+        getgenv().espg = v
+        if v then
+            for _, gold in pairs(Workspace.CurrentRooms:GetDescendants()) do
+                if gold.Name == "GoldPile" then
+                    ESP({
+                        Type = "Gold",
+                        Object = gold,
+                        Text = string.format("Gold [%s]", gold:GetAttribute("GoldValue")),
+                        Color = Color3.new(1, 1, 0) -- Vàng
+                    })
+                end
+            end
+        else
+            for _, esp in pairs(getgenv().ESPTable.Gold) do
+                esp.Destroy()
+            end
+        end
+    end
+})
+
+-- Toggle ESP Guiding Light
+Tab:Toggle({
+    Title = "Esp Guiding Light",
+    Default = false,
+    Callback = function(v)
+        getgenv().espgl = v
+        if v then
+            for _, guidance in pairs(Workspace.CurrentCamera:GetChildren()) do
+                if guidance:IsA("BasePart") and guidance.Name == "Guidance" then
+                    local part = guidance:Clone()
+                    part.Anchored = true
+                    part.Size = Vector3.new(3, 3, 3)
+                    part.Transparency = 0.5
+                    part.Name = "_Guidance"
+                    part.Parent = Workspace
+                    ESP({
+                        Type = "Guiding",
+                        Object = part,
+                        Text = "Guidance",
+                        Color = Color3.new(0, 0, 1) -- Xanh dương
+                    })
+                end
+            end
+        else
+            for _, esp in pairs(getgenv().ESPTable.Guiding) do
+                esp.Destroy()
+            end
+        end
+    end
+})
+
+-- Toggle ESP Tracer
+Tab:Toggle({
+    Title = "ESP Tracer",
+    Default = false,
+    Callback = function(v)
+        getgenv().espTracer = v
+        ESPLibrary.Tracers.Set(v)
+        for _, espType in pairs(getgenv().ESPTable) do
+            for _, esp in pairs(espType) do
+                esp.Update({ Tracer = { Enabled = v } })
+            end
+        end
+    end
+})
+
+-- Toggle ESP Rainbow
+Tab:Toggle({
+    Title = "ESP Rainbow",
+    Default = false,
+    Callback = function(v)
+        getgenv().espRainbow = v
+        ESPLibrary.Rainbow.Set(v)
+        for _, espType in pairs(getgenv().ESPTable) do
+            for _, esp in pairs(espType) do
+                esp.Update({ Rainbow = v })
+            end
+        end
+    end
+})
+
+-- Change Speed
+Tab:Input({
+    Title = "Change Speed",
+    Desc = "only int value",
+    Value = "0",
+    Type = "Input",
+    Placeholder = "Enter int value...",
+    Callback = function(v)
+        if not tonumber(v) then
+            alert("ERROR", "Please enter a valid integer value")
+            return
+        end
+        local speedValue = tonumber(v)
+        local character = localPlayer.Character
+        if character then
+            character:SetAttribute("SpeedBoostBehind", speedValue)
+        end
+    end
+})
+
+-- Notify Entity và ESP Entity
+Workspace.ChildAdded:Connect(function(child)
+    if getgenv().ne and (table.find(EntityTable.Names, child.Name) or EntityTable.NotifyMessage[child.Name]) then
+        local shortName = EntityTable.ShortNames[child.Name] or child.Name
+        alert("ENTITIES", shortName .. " has spawned! " .. (EntityTable.NotifyReason[child.Name] and EntityTable.NotifyReason[child.Name].Spawned and "" or "Find Hiding Spots!!!"))
+        if RBXGeneral then
+            RBXGeneral:SendAsync(EntityTable.NotifyMessage[child.Name] or shortName .. " has spawned!")
+        end
+    end
+    if getgenv().ne and table.find(EntityTable.Names, child.Name) then
+        ESP({
+            Type = "Entity",
+            Object = child,
+            Text = EntityTable.ShortNames[child.Name] or child.Name,
+            Color = Color3.new(1, 0, 0), -- Đỏ
+            IsEntity = true
+        })
+    end
+    if getgenv().ne and table.find(EntityTable.SideNames, child.Name) then
+        ESP({
+            Type = "SideEntity",
+            Object = child,
+            Text = EntityTable.ShortNames[child.Name] or child.Name,
+            Color = Color3.new(1, 0, 0) -- Đỏ
+        })
+    end
+    if getgenv().autoWardrobe and table.find(EntityTable.AutoWardrobe.Entities, child.Name) then
+        local distance = EntityTable.AutoWardrobe.Distance[child.Name].Distance
+        local targetWardrobeChecker = function(prompt)
+            if not prompt.Parent or not prompt.Parent:FindFirstChild("HiddenPlayer") then return false end
+            return prompt.Name == "HidePrompt" and (prompt.Parent:GetAttribute("LoadModule") == "Wardrobe" or prompt.Parent:GetAttribute("LoadModule") == "Bed" or prompt.Parent.Name == "Rooms_Locker") and not prompt.Parent.HiddenPlayer.Value and DistanceFromCharacter(prompt.Parent) < prompt.MaxActivationDistance
+        end
+        local targetWardrobePrompt = nil
+        for _, prompt in pairs(ProximityPromptService:GetPrompts()) do
+            if targetWardrobeChecker(prompt) then
+                targetWardrobePrompt = prompt
+                break
+            end
+        end
+        if targetWardrobePrompt then
+            fireproximityprompt(targetWardrobePrompt)
+        end
+    end
+end)
+
+-- ESP Items, Key/Lever, Door
+spawn(function()
+    while wait(0.5) do
+        if getgenv().espi then
+            for _, item in pairs(Workspace.Drops:GetChildren()) do
+                if item:IsA("Model") and (item:GetAttribute("Pickup") or item:GetAttribute("PropType")) then
+                    ESP({
+                        Type = "Item",
+                        Object = item,
+                        Text = item.Name,
+                        Color = Color3.new(1, 1, 0) -- Vàng
+                    })
+                end
+            end
+        end
+        if getgenv().espk then
+            for _, item in pairs(game.CollectionService:GetTagged("RevealedByGuidance")) do
+                ESP({
+                    Type = "Item",
+                    Object = item,
+                    Text = item.Name,
+                    Color = Color3.new(1, 1, 0) -- Vàng
+                })
+            end
+        end
+        if getgenv().espdr then
+            local currentRoom = Workspace.CurrentRooms:FindFirstChild(tostring(localPlayer:GetAttribute("CurrentRoom")))
+            if currentRoom and currentRoom.Door and currentRoom.Door.Door then
+                ESP({
+                    Type = "Door",
+                    Object = currentRoom.Door.Door,
+                    Text = "Door " .. tostring(localPlayer:GetAttribute("CurrentRoom") + 1),
+                    Color = Color3.new(0, 0, 1) -- Xanh dương
+                })
+            end
+        end
+    end
+end)
+
+-- Infinite Crucifix
+Workspace.ChildAdded:Connect(function(child)
+    if getgenv().infCrucifix and EntityTable.InfCrucifixVelocity[child.Name] then
+        local velocity = EntityTable.InfCrucifixVelocity[child.Name]
+        if child.PrimaryPart and DistanceFromCharacter(child) > velocity.minDistance then
+            local crucifix = character:FindFirstChild("Crucifix")
+            if crucifix then
+                fireproximityprompt(crucifix:FindFirstChildOfClass("ProximityPrompt"))
+            end
+        end
+    end
+end)
+
+-- Anti Screech
+local mt = getrawmetatable(game)
+setreadonly(mt, false)
+local oldNamecall = mt.__namecall
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    if not checkcaller() and method == "FireServer" then
+        if (self.Name == "Screech" or self == "Screech") and getgenv().rsd then
+            return oldNamecall(self, true)
+        elseif (self.Name == "MiniScreech" or self == "MiniScreech") and getgenv().antiA90 then
+            return
+        end
+    end
+    return oldNamecall(self, ...)
+end)
+
+-- No Cutscenes
+local oldFire = getmetatable(ReplicatedStorage.RemotesFolder.CamLock).__call
+setmetatable(ReplicatedStorage.RemotesFolder.CamLock, {
+    __call = function(self, ...)
+        if getgenv().noCutscenes then return end
+        return oldFire(self, ...)
+    end
+})
