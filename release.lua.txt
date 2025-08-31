@@ -1,0 +1,81 @@
+-- LocalScript đặt trong StarterGui
+local PlayersService = game:GetService("Players")
+local LocalPlayer = PlayersService.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- GUI chính
+local MainGui = Instance.new("ScreenGui")
+MainGui.Name = "MainHubUI"
+MainGui.IgnoreGuiInset = true
+MainGui.ResetOnSpawn = false
+MainGui.Parent = PlayerGui
+
+-- Frame nền đen
+local BlackBackgroundFrame = Instance.new("Frame")
+BlackBackgroundFrame.Size = UDim2.new(1, 0, 1, 0)
+BlackBackgroundFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+BlackBackgroundFrame.BorderSizePixel = 0
+BlackBackgroundFrame.Parent = MainGui
+
+-- Tiêu đề
+local HubTitle = Instance.new("TextLabel")
+HubTitle.Size = UDim2.new(1, 0, 0, 60)
+HubTitle.Position = UDim2.new(0, 0, 0, 0)
+HubTitle.BackgroundTransparency = 1
+HubTitle.Text = "Ak Gaming Hub"
+HubTitle.Font = Enum.Font.GothamBold
+HubTitle.TextSize = 36
+HubTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+HubTitle.TextStrokeTransparency = 0.3
+HubTitle.Parent = BlackBackgroundFrame
+
+-- Frame xám chứa nội dung
+local GrayContentFrame = Instance.new("Frame")
+GrayContentFrame.Size = UDim2.new(0.9, 0, 0.75, 0)
+GrayContentFrame.Position = UDim2.new(0.05, 0, 0.15, 0)
+GrayContentFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+GrayContentFrame.BorderSizePixel = 0
+GrayContentFrame.Parent = BlackBackgroundFrame
+
+local GrayContentCorner = Instance.new("UICorner")
+GrayContentCorner.CornerRadius = UDim.new(0, 12)
+GrayContentCorner.Parent = GrayContentFrame
+
+-- Label nội dung
+local ContentTextLabel = Instance.new("TextLabel")
+ContentTextLabel.Size = UDim2.new(1, -20, 1, -20)
+ContentTextLabel.Position = UDim2.new(0, 10, 0, 10)
+ContentTextLabel.BackgroundTransparency = 1
+ContentTextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+ContentTextLabel.TextWrapped = true
+ContentTextLabel.TextXAlignment = Enum.TextXAlignment.Left
+ContentTextLabel.TextYAlignment = Enum.TextYAlignment.Top
+ContentTextLabel.Font = Enum.Font.GothamSemibold
+ContentTextLabel.TextSize = 18
+ContentTextLabel.Parent = GrayContentFrame
+ContentTextLabel.Text = [[
+ Mẹ Meimei ngu loz đéo bt code còn sĩ bày đặt fix ui chửi nó.Script Ak Gaming sẽ Dead nếu ko unban t.ok
+]]
+-- Nút đóng (giữ nguyên style, chỉ đổi vị trí)
+local CloseHubButton = Instance.new("TextButton")
+CloseHubButton.Size = UDim2.new(0, 140, 0, 45)
+CloseHubButton.Position = UDim2.new(1, -150, 0, 10) -- Đặt sát góc phải trên
+CloseHubButton.AnchorPoint = Vector2.new(0, 0)
+CloseHubButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+CloseHubButton.Text = "Close"
+CloseHubButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseHubButton.Font = Enum.Font.GothamBold
+CloseHubButton.TextSize = 20
+CloseHubButton.Parent = BlackBackgroundFrame
+
+local CloseButtonCorner = Instance.new("UICorner")
+CloseButtonCorner.CornerRadius = UDim.new(0, 10)
+CloseButtonCorner.Parent = CloseHubButton
+
+
+-- Hàm xử lý khi ấn nút Close
+CloseHubButton.MouseButton1Click:Connect(function()
+ContentTextLabel.Text = [[
+Có cc mà close e ạ.\nMẹ Meimei ngu loz đéo bt code còn sĩ bày đặt fix ui chửi nó.Script Ak Gaming sẽ Dead nếu ko unban t.ok
+]]
+end)
